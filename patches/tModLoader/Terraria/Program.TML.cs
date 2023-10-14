@@ -244,7 +244,7 @@ public static partial class Program
 			SavePath = customSavePath;
 		}
 		else if (File.Exists("savehere.txt")) {
-			// Fallback for unresolveable antivirus/onedrive issues. Also makes the game portable I guess.
+			// Fallback for unresolvable antivirus/onedrive issues. Also makes the game portable I guess.
 			SavePathShared = ReleaseFolder;
 			SavePath = SaveFolderName;
 		}
@@ -296,7 +296,33 @@ public static partial class Program
 		    }
 		}
 		catch (Exception ex) {
-			ErrorReporting.FatalExit("An unexpected error occured during tML startup", ex);
+			ErrorReporting.FatalExit("An unexpected error occurred during tML startup", ex);
+		}
+	}
+
+	private static void ProcessLaunchArgs(string[] args, bool monoArgs, out bool isServer)
+	{
+		isServer = false;
+
+		try {
+			if (monoArgs)
+				args = Utils.ConvertMonoArgsToDotNet(args);
+
+			LaunchParameters = Utils.ParseArguements(args);
+
+			if (LaunchParameters.ContainsKey("-terrariasteamclient")) {
+				// Launch the Terraria playtime tracker and quit.
+				TerrariaSteamClient.Run();
+				Environment.Exit(1);
+			}
+
+			SavePath = (LaunchParameters.ContainsKey("-savedirectory") ? LaunchParameters["-savedirectory"] : Platform.Get<IPathService>().GetStoragePath("Terraria"));
+
+			// Unify server and client dll via launch param
+			isServer = LaunchParameters.ContainsKey("-server");
+		}
+		catch (Exception e) {
+			ErrorReporting.FatalExit("Unhandled Issue with Launch Arguments. Please verify sources such as Steam Launch Options, cli-ArgsConfig, and VS profiles", e);
 		}
 	}
 

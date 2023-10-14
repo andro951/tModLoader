@@ -19,6 +19,12 @@ public partial class Player : IEntityWithInstances<ModPlayer>
 
 	public Item equippedWings = null;
 
+	/// <summary>
+	/// Causes <see cref="SmartSelectLookup"/> to run the next time an item animation is finished, even if <see cref="controlUseItem"/> is held. <br/>
+	/// Used internally by tML to when a hotbar key is pressed while using an item.
+	/// </summary>
+	public bool selectItemOnNextUse;
+
 	private int consumedLifeCrystals;
 
 	/// <summary>
@@ -506,8 +512,8 @@ public partial class Player : IEntityWithInstances<ModPlayer>
 	{
 		float reduce = manaCost;
 		float mult = 1;
-		// TODO: Make a space gun set
-		if (spaceGun && (item.type == ItemID.SpaceGun || item.type == ItemID.ZapinatorGray || item.type == ItemID.ZapinatorOrange))
+
+		if (spaceGun && ItemID.Sets.IsSpaceGun[item.type])
 			mult = 0;
 
 		if(item.type == ItemID.BookStaff && altFunctionUse == 2)

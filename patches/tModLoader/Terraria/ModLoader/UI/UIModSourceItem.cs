@@ -104,11 +104,21 @@ internal class UIModSourceItem : UIPanel
 				Top = { Pixels = 4 }
 			};
 			openCSProjButton.OnLeftClick += (a, b) => {
-				Process.Start(
-					new ProcessStartInfo(csprojFile) {
-						UseShellExecute = true
-					}
-				);
+				// Due to "DOTNET_ROLL_FORWARD=Disable" environment variable being set for normal game launches, launching the .csproj directly results in a prompt to install .net 6.0.0 because of the inherited environment variables. This works around that for Windows users.
+				if (Platform.IsWindows) {
+					Process.Start(
+						new ProcessStartInfo("explorer", csprojFile) {
+							UseShellExecute = true
+						}
+					);
+				}
+				else {
+					Process.Start(
+						new ProcessStartInfo(csprojFile) {
+							UseShellExecute = true
+						}
+					);
+				}
 			};
 			Append(openCSProjButton);
 
@@ -289,6 +299,7 @@ internal class UIModSourceItem : UIPanel
 				Main.menuMode = Interface.reloadModsID;
 				ModLoader.OnSuccessfulLoad += () => {
 					Main.QueueMainThreadAction(() => {
+						// Delay publishing to when the mod is completely reloaded in main thread
 						PublishMod(null, null);
 					});
 				};
@@ -302,7 +313,7 @@ internal class UIModSourceItem : UIPanel
 			WorkshopHelper.PublishMod(_builtMod, icon);
 		}
 		catch (WebException e) {
-			UIModBrowser.LogModBrowserException(e);
+			UIModBrowser.LogModBrowserException(e, Interface.modSourcesID);
 		}
 	}
 
@@ -324,7 +335,7 @@ internal class UIModSourceItem : UIPanel
 			pending.WaitForExit();
 		}
 		catch (WebException e) {
-			UIModBrowser.LogModBrowserException(e);
+			UIModBrowser.LogModBrowserException(e, Interface.modSourcesID);
 		}
 	}
 

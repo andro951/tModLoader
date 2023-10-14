@@ -1,4 +1,5 @@
 ﻿using ExampleMod.Content.Dusts;
+using ExampleMod.Content.EmoteBubbles;
 using ExampleMod.Content.Items;
 using ExampleMod.Content.Items.Armor;
 using ExampleMod.Content.Items.Placeable;
@@ -188,9 +189,10 @@ namespace ExampleMod.Content.NPCs
 			NPCID.Sets.HatOffsetY[Type] = 4;
 			NPCID.Sets.ShimmerTownTransform[Type] = true;
 			NPCID.Sets.NoTownNPCHappiness[Type] = true; // Prevents the happiness button
+			NPCID.Sets.FaceEmote[Type] = ModContent.EmoteBubbleType<ExampleTravellingMerchantEmote>();
 
 			// Influences how the NPC looks in the Bestiary
-			NPCID.Sets.NPCBestiaryDrawModifiers drawModifiers = new NPCID.Sets.NPCBestiaryDrawModifiers(0) {
+			NPCID.Sets.NPCBestiaryDrawModifiers drawModifiers = new NPCID.Sets.NPCBestiaryDrawModifiers() {
 				Velocity = 2f, // Draws the NPC in the bestiary as if its walking +2 tiles in the x direction
 				Direction = -1 // -1 is left and 1 is right.
 			};
@@ -230,7 +232,7 @@ namespace ExampleMod.Content.NPCs
 		}
 
 		public override void SaveData(TagCompound tag) {
-			tag["itemIds"] = shopItems;
+			tag["shopItems"] = shopItems;
 		}
 
 		public override void LoadData(TagCompound tag) {
