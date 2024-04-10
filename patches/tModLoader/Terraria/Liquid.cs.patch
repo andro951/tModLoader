@@ -1,14 +1,21 @@
 --- src/TerrariaNetCore/Terraria/Liquid.cs
 +++ src/tModLoader/Terraria/Liquid.cs
-@@ -3,6 +_,7 @@
+@@ -1,10 +_,14 @@
+ using System;
+ using System.Collections.Generic;
++using Terraria;
  using Terraria.GameContent.NetModules;
  using Terraria.ID;
  using Terraria.Localization;
 +using Terraria.ModLoader;
  using Terraria.ObjectData;
  using Terraria.WorldBuilding;
++using Terraria.ModLoader;
++using static Terraria.WorldBuilding.Searches;
  
-@@ -121,7 +_,7 @@
+ namespace Terraria;
+ 
+@@ -121,17 +_,22 @@
  		bool flag = tile.honey();
  		bool flag2 = tile.shimmer();
  		int num3 = tile.liquid;
@@ -17,6 +24,73 @@
  		tile.liquid = 0;
  		bool flag3 = true;
  		while (true) {
+ 			Tile tile2 = Main.tile[num, num2 + 1];
+ 			bool flag4 = false;
++			bool canMoveDownVanilla = num2 < Main.maxTilesY - 5 && tile2.liquid == 0 && (!tile2.nactive() || !Main.tileSolid[tile2.type] || Main.tileSolidTop[tile2.type]);
++			/*
+ 			while (num2 < Main.maxTilesY - 5 && tile2.liquid == 0 && (!tile2.nactive() || !Main.tileSolid[tile2.type] || Main.tileSolidTop[tile2.type])) {
++			*/
++			while (LiquidLoader.CanMoveDown(originX, originY, num, num2 + 1, canMoveDownVanilla)) {
+ 				num2++;
+ 				flag4 = true;
+ 				flag3 = false;
+ 				tile2 = Main.tile[num, num2 + 1];
++				canMoveDownVanilla = num2 < Main.maxTilesY - 5 && tile2.liquid == 0 && (!tile2.nactive() || !Main.tileSolid[tile2.type] || Main.tileSolidTop[tile2.type]);
+ 			}
+ 
+ 			if (WorldGen.gen && flag4 && !flag && !flag2) {
+@@ -149,18 +_,22 @@
+ 			bool flag6 = false;
+ 			bool flag7 = false;
+ 			while (true) {
++				//Left or Right tile Check
+ 				if (Main.tile[num + num5 * num4, num2].liquid == 0) {
+ 					num6 = num4;
+ 					num7 = num5;
+ 				}
+ 
++				//Check if too close to min/max x
+ 				if (num4 == -1 && num + num5 * num4 < 5)
+ 					flag6 = true;
+ 				else if (num4 == 1 && num + num5 * num4 > Main.maxTilesX - 5)
+ 					flag5 = true;
+ 
++				//Check if down tile has the same type of liquid and not full, then transfer liquid to it.
+ 				tile2 = Main.tile[num + num5 * num4, num2 + 1];
+ 				if (tile2.liquid != 0 && tile2.liquid != byte.MaxValue && tile2.liquidType() == b) {
++					//Move liquid to the down tile
+ 					int num8 = 255 - tile2.liquid;
+ 					if (num8 > num3)
+ 						num8 = num3;
+@@ -171,13 +_,28 @@
+ 						break;
+ 				}
+ 
++				//Potential problem here is that the tile being looked at Main.tile[num, num2] is not always the original tile, and won't have values for
++				//	liquid type or liquid, making it difficult to work with.  May need to have a CanSettleLiquids hook with extra info passed in.
++				bool canMoveDown = num2 < Main.maxTilesY - 5 && tile2.liquid == 0 && (!tile2.nactive() || !Main.tileSolid[tile2.type] || Main.tileSolidTop[tile2.type]);
++				int moveX = num + num5 * num4;
++				/*
+ 				if (num2 < Main.maxTilesY - 5 && tile2.liquid == 0 && (!tile2.nactive() || !Main.tileSolid[tile2.type] || Main.tileSolidTop[tile2.type])) {
++				*/
++				if (LiquidLoader.CanMoveDown(moveX, num2, moveX, num2 + 1, canMoveDown)) {
+ 					flag7 = true;
+ 					break;
+ 				}
+ 
++				//Check horizontal tile.
+ 				Tile tile3 = Main.tile[num + (num5 + 1) * num4, num2];
++				bool cantMoveHorizontal = (tile3.liquid != 0 && (!flag3 || num4 != 1)) || (tile3.nactive() && Main.tileSolid[tile3.type] && !Main.tileSolidTop[tile3.type]);
++				bool canMoveHorizontalVanilla = !cantMoveHorizontal;
++				int nextMoveX = num + (num5 + 1) * num4;
++				bool canMoveHorizontal = num4 == -1 ? LiquidLoader.CanMoveLeft(num, num2, nextMoveX, num2, canMoveHorizontalVanilla) : LiquidLoader.CanMoveRight(num, num2, nextMoveX, num2, canMoveHorizontalVanilla);
++				/*
+ 				if ((tile3.liquid != 0 && (!flag3 || num4 != 1)) || (tile3.nactive() && Main.tileSolid[tile3.type] && !Main.tileSolidTop[tile3.type])) {
++				*/
++				if (!canMoveHorizontal) {
+ 					if (num4 == 1)
+ 						flag5 = true;
+ 					else
 @@ -338,7 +_,9 @@
  
  		byte liquid = tile5.liquid;
@@ -37,12 +111,12 @@
  		if (tile5.lava()) {
  			LavaCheck(x, y);
  			if (!quickFall) {
-@@ -417,6 +_,43 @@
+@@ -417,8 +_,50 @@
  				}
  			}
  		}
 +		*/
-+
+ 
 +		for (int i = 0; i < LiquidLoader.LiquidCount; i++) {
 +			if (tile5.LiquidType == i) {
 +				if (tile5.LiquidType == LiquidID.Lava) {
@@ -78,17 +152,140 @@
 +		if (!LiquidLoader.Update(tile5.LiquidType, this, x, y, tile, tile2, tile3, tile4)) {
 +			return;
 +		}
- 
++
++		bool canMoveDown = (!tile4.nactive() || !Main.tileSolid[tile4.type] || Main.tileSolidTop[tile4.type]) && (tile4.liquid <= 0 || tile4.liquidType() == tile5.liquidType()) && tile4.liquid < byte.MaxValue;
++		/*
  		if ((!tile4.nactive() || !Main.tileSolid[tile4.type] || Main.tileSolidTop[tile4.type]) && (tile4.liquid <= 0 || tile4.liquidType() == tile5.liquidType()) && tile4.liquid < byte.MaxValue) {
++		*/
++		if (LiquidLoader.CanMoveDown(x, y, x, y + 1, canMoveDown)) {
++			//Move Down
  			bool flag = false;
-@@ -744,6 +_,7 @@
+ 			num = 255 - tile4.liquid;
+ 			if (num > (float)(int)tile5.liquid)
+@@ -445,6 +_,9 @@
+ 		}
+ 
+ 		if (tile5.liquid > 0) {
++			CheckMoveLiquidsLeftOrRight(x, y);
++
++			/*
+ 			bool flag2 = true;
+ 			bool flag3 = true;
+ 			bool flag4 = true;
+@@ -724,6 +_,7 @@
+ 
+ 				tile5.liquid = (byte)num;
+ 			}
++			*/
+ 		}
+ 
+ 		if (tile5.liquid != liquid) {
+@@ -744,7 +_,105 @@
  		else {
  			kill++;
  		}
-+		
++
  	}
++
++	//Added by tModLoader
++	private static bool MovePrevented(Tile tile) => tile.HasUnactuatedTile && Main.tileSolid[tile.TileType] && !Main.tileSolidTop[tile.TileType];
++
++	//Added by tModLoader
++	private static bool WillMerge(Tile tile) => tile.LiquidAmount > 0 && tile.LiquidType != tile.LiquidType;
++
++	//Added by tModLoader, written by andro951.
++	//Replaces the code in Update() that moves liquids left and right with loops to make it much easier to work with an insert hooks.
++	//Extra care was taken to make the logic exactly the same as the original even where it seems to be inefficient to prevent potential issues.
++	private static void CheckMoveLiquidsLeftOrRight(int x, int y)
++	{
++		Tile tile = Main.tile[x, y];
++		if (tile.LiquidAmount > 0) {
++			float num = 0f;
++			int numLeft = 0;
++			int numRight = 0;
++			int liquidAmount = 0;
++			for (int i = 1; i <= 3; i++) {
++				int leftX = x - i;
++				Tile tileL = Main.tile[leftX, y];
++				bool canMoveLeft = true;
++				if (MovePrevented(tileL) || WillMerge(tileL)) {
++					canMoveLeft = false;
++				}
++				else if (i > 1 && tileL.LiquidAmount == 0) {
++					canMoveLeft = false;
++				}
++				else if (i == 2 && tile.LiquidAmount > 250) {
++					canMoveLeft = false;
++				}
++				
++				if (LiquidLoader.CanMoveLeft(x, y, leftX, y, canMoveLeft)) {
++					numLeft++;
++					liquidAmount += tileL.LiquidAmount;
++				}
++
++				int rightX = x + i;
++				Tile tileR = Main.tile[rightX, y];
++				bool canMoveRight = true;
++				if (MovePrevented(tileR) || WillMerge(tileR)) {
++					canMoveRight = false;
++				}
++				else if (i > 1 && tileR.LiquidAmount == 0) {
++					canMoveRight = false;
++				}
++				else if (i == 2 && tile.LiquidAmount > 250) {
++					canMoveRight = false;
++				}
++				
++				if (LiquidLoader.CanMoveRight(x, y, rightX, y, canMoveRight)) {
++					numRight++;
++					liquidAmount += tileR.LiquidAmount;
++				}
++
++				if (!canMoveLeft || !canMoveRight)
++					break;
++			}
++				
++			num += tile.LiquidAmount + liquidAmount;
++			if (tile.LiquidAmount < 3)
++				num--;
++
++			byte newAmount = (byte)Math.Round(num / (float)(1 + numLeft + numRight));
++			if (newAmount == byte.MaxValue - 1 && WorldGen.genRand.Next(30) == 0)
++				newAmount = byte.MaxValue;
++				
++			bool anyUpdated = false;
++			int higherNum = Math.Max(numLeft, numRight);
++			for (int i = 1; i <= higherNum; i++) {
++				if (i <= numLeft) {
++					int tileX = x - i;
++					Tile tileL = Main.tile[tileX, y];
++					tileL.LiquidType = tile.LiquidType;
++					if (tileL.LiquidAmount != newAmount || tile.LiquidAmount != newAmount) {
++						tileL.LiquidAmount = newAmount;
++						Liquid.AddWater(tileX, y);
++						anyUpdated = true;
++					}
++				}
++	
++				if (i <= numRight) {
++					int tileX = x + i;
++					Tile tileLR = Main.tile[tileX, y];
++					tileLR.LiquidType = tile.LiquidType;
++					if (tileLR.LiquidAmount != newAmount || tile.LiquidAmount != newAmount) {
++						tileLR.LiquidAmount = newAmount;
++						Liquid.AddWater(tileX, y);
++						anyUpdated = true;
++					}
++				}
++			}
++
++			if (anyUpdated || numLeft < 2 && numRight < 2 || Main.tile[x, y - 1].LiquidAmount <= 0)
++				tile.LiquidAmount = newAmount;
++ 		}
++ 	}
  
  	public static void StartPanic()
+ 	{
 @@ -970,6 +_,21 @@
  		Tile tile5 = Main.tile[x, y];
  		if ((tile.liquid > 0 && tile.liquidType() != thisLiquidType) || (tile2.liquid > 0 && tile2.liquidType() != thisLiquidType) || (tile3.liquid > 0 && tile3.liquidType() != thisLiquidType)) {

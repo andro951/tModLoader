@@ -9,7 +9,9 @@ using Terraria.ID;
 using Terraria.ModLoader.Core;
 
 namespace Terraria.ModLoader;
-
+/// <summary>
+/// This serves as the central class from which liquid-related functions are carried out.
+/// </summary>
 public static class LiquidLoader
 {
 	internal struct LiquidProperties
@@ -42,6 +44,7 @@ public static class LiquidLoader
 		return reserveId;
 	}
 
+	internal static readonly IList<GlobalLiquid> globalLiquids = new List<GlobalLiquid>();
 	internal static void ResizeArrays(bool unloading = false)
 	{
 		//Texture
@@ -58,6 +61,12 @@ public static class LiquidLoader
 		Array.Resize(ref LiquidLoader.liquidProperties, nextLiquid);
 		Array.Resize(ref Main.SceneMetrics._liquidCounts, nextLiquid);
 		Array.Resize(ref Main.PylonSystem._sceneMetrics._liquidCounts, nextLiquid);
+
+		//Hooks
+		ModLoader.BuildGlobalHook(ref HookCanMoveLeft, globalLiquids, g => g.CanMoveLeft);
+		ModLoader.BuildGlobalHook(ref HookCanMoveRight, globalLiquids, g => g.CanMoveRight);
+		ModLoader.BuildGlobalHook(ref HookCanMoveDown, globalLiquids, g => g.CanMoveDown);
+		ModLoader.BuildGlobalHook(ref HookShouldDrawLiquids, globalLiquids, g => g.ShouldDrawLiquids);
 
 		if (!unloading) {
 			loaded = true;
@@ -111,5 +120,77 @@ public static class LiquidLoader
 			new LiquidProperties() {
 				FallDelay = 0
 			}};
+	}
+
+	private delegate bool? DelegateCanMove(int x, int y, int xMove, int yMove, bool canMoveLeftVanilla);
+	private static DelegateCanMove[] HookCanMoveLeft;
+	public static bool CanMoveLeft(int x, int y, int xMove, int yMove, bool canMoveLeftVanilla)
+	{
+		bool? result = null;
+
+		foreach (var hook in HookCanMoveLeft) {
+			bool? move = hook(x, y, xMove, yMove, canMoveLeftVanilla);
+			if (move.HasValue) {
+				result = move;
+				if (!move.Value)
+					return false;
+			}
+		}
+
+		return result ?? canMoveLeftVanilla;
+	}
+
+	private delegate bool? DelegateCanMoveRight(int x, int y, int xMove, int yMove, bool canMoveRightVanilla);
+	private static DelegateCanMove[] HookCanMoveRight;
+	public static bool? CanMoveRight(int x, int y, int xMove, int yMove, bool canMoveRightVanilla)
+	{
+		bool? result = null;
+
+		foreach (var hook in HookCanMoveRight) {
+			bool? move = hook(x, y, xMove, yMove, canMoveRightVanilla);
+			if (move.HasValue) {
+				result = move;
+				if (!move.Value)
+					return false;
+			}
+		}
+
+		return result ?? canMoveRightVanilla;
+	}
+
+	private delegate bool? DelegateCanMoveDown(int x, int y, int xMove, int yMove, bool canMoveDownVanilla);
+	private static DelegateCanMove[] HookCanMoveDown;
+	public static bool CanMoveDown(int x, int y, int xMove, int yMove, bool canMoveDownVanilla)
+	{
+		bool? result = null;
+
+		foreach (var hook in HookCanMoveDown) {
+			bool? move = hook(x, y, xMove, yMove, canMoveDownVanilla);
+			if (move.HasValue) {
+				result = move;
+				if (!move.Value)
+					return false;
+			}
+		}
+
+		return result ?? canMoveDownVanilla;
+	}
+
+	private delegate bool? DelegateShouldDrawLiquids(int x, int y, bool shouldDrawVanilla);
+	private static DelegateShouldDrawLiquids[] HookShouldDrawLiquids;
+	public static bool ShouldDrawLiquids(int x, int y, bool shouldDrawVanilla)
+	{
+		bool? result = null;
+
+		foreach (var hook in HookShouldDrawLiquids) {
+			bool? draw = hook(x, y, shouldDrawVanilla);
+			if (draw.HasValue) {
+				result = draw;
+				if (!draw.Value)
+					return false;
+			}
+		}
+
+		return result ?? shouldDrawVanilla;
 	}
 }
