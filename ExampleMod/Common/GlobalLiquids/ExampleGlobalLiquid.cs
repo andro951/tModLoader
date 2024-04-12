@@ -129,7 +129,13 @@ namespace ExampleMod.Common.GlobalLiquids
 			return null;
 		}
 
-		public override bool ShouldMergeLiquids(int x, int y, int thisLiquidType, int mergeLiquidType, int liquidMergeTileType) {
+		public override bool AllowMergeLiquids(int x, int y, Tile tile, int x2, int y2, Tile tile2) {
+			return ExampleBlockLiquidInteractionsAllowed(x, y);
+		}
+		public override bool ShouldDeleteLiquid(LiquidMerge liquidMerge) {
+			return ExampleBlockLiquidInteractionsAllowed(liquidMerge.X, liquidMerge.Y);
+		}
+		private bool ExampleBlockLiquidInteractionsAllowed(int x, int y) {
 			//If the liquid has an ExampleBlock on both sides of the body of liquid, prevent merging.
 			int exampleBlock = ModContent.TileType<ExampleBlock>();
 
